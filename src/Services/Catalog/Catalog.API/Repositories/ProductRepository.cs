@@ -1,58 +1,83 @@
-﻿using Catalog.API.Data;
+﻿using Catalog.API.Data.Interfaces;
 using Catalog.API.Entities;
+using Catalog.API.Repositories.Interfaces;
 using MongoDB.Driver;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Catalog.API.Repositories
 {
     public class ProductRepository : IProductRepository
     {
-        private readonly ICatalogContext context;
+        private readonly ICatalogContext _context;
 
-        public ProductRepository(ICatalogContext context)
+        public ProductRepository(ICatalogContext catalogContext)
         {
-            this.context = context;
+            _context = catalogContext ?? throw new ArgumentNullException(nameof(catalogContext));
+        }        
+
+        public async Task<IEnumerable<Product>> GetProducts()
+        {
+            return await _context
+                            .Products
+                            .Find(p => true)
+                            .ToListAsync();
         }
 
-        public async Task CreateProduct(Product product)
+        public async Task<Product> GetProduct(string id)
         {
-            await context.Products.InsertOneAsync(product);
+            return await _context
+                            .Products
+                            .Find(p => p.Id == id)
+                            .FirstOrDefaultAsync();
         }
 
-        public async Task<bool> DeleteProduct(string id)
+        public async Task<IEnumerable<Product>> GetProductByName(string name)
         {
-            //todo: check how it works
-            var result = await context.Products.DeleteOneAsync(p => p.Id == id);
-            return result.IsAcknowledged && result.DeletedCount > 0;
-        }
+            FilterDefinition<Product> filter = Builders<Product>.Filter.ElemMatch(p => p.Name, name);
 
-        public async Task<Product> GetProduct(string productId)
-        {
-            return await context.Products.Find(p => p.Id == productId).FirstOrDefaultAsync();
+            return await _context
+                          .Products
+                          .Find(filter)
+                          .ToListAsync();
         }
 
         public async Task<IEnumerable<Product>> GetProductByCategory(string categoryName)
         {
-            FilterDefinition<Product> filterDefinition = Builders<Product>.Filter.Eq(p => p.Category, categoryName);
+            FilterDefinition<Product> filter = Builders<Product>.Filter.Eq(p => p.Category, categoryName);
 
-            return await context.Products.Find(filterDefinition).ToListAsync();
+            return await _context
+                          .Products
+                          .Find(filter)
+                          .ToListAsync();
         }
 
-        public async Task<IEnumerable<Product>> GetProductByName(string productName)
+        public async Task Create(Product product)
         {
-            FilterDefinition<Product> filterDefinition = Builders<Product>.Filter.ElemMatch(p => p.Name, productName);
+            await _context.Products.InsertOneAsync(product);
 
-            return await context.Products.Find(filterDefinition).ToListAsync();
         }
 
-        public async Task<IEnumerable<Product>> GetProducts()
+        public async Task<bool> Update(Product product)
         {
-            return (await context.Products.FindAsync(p => true)).ToEnumerable();
+            var updateResult = await _context
+                                        .Products
+                                        .ReplaceOneAsync(filter: g => g.Id == product.Id, replacement: product);
+
+            return updateResult.IsAcknowledged
+                    && updateResult.ModifiedCount > 0;
         }
 
-        public async Task<bool> UpdateProduct(Product product)
+        public async Task<bool> Delete(string id)
         {
-            var result = await context.Products.ReplaceOneAsync(p => p.Id == product.Id, product);
-            return result.IsAcknowledged && result.ModifiedCount > 0;
-        }
+            FilterDefinition<Product> filter = Builders<Product>.Filter.Eq(m => m.Id, id);
+            DeleteResult deleteResult = await _context
+                                                .Products
+                                                .DeleteOneAsync(filter);
+
+            return deleteResult.IsAcknowledged
+                && deleteResult.DeletedCount > 0;
+        }        
     }
 }
