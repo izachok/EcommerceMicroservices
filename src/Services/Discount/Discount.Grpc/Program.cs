@@ -5,6 +5,8 @@ using Discount.Grpc.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddLogging();
+
 builder.Services.AddScoped<IDiscountRepository, DiscountRepository>();
 builder.Services.AddAutoMapper(typeof(Program));
 

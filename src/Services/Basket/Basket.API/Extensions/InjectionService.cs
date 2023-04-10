@@ -1,13 +1,21 @@
-﻿using Basket.API.Repositories;
+﻿using Basket.API.GrpcServices;
+using Basket.API.Repositories;
+using Discount.Grpc.Protos;
+using static Discount.Grpc.Protos.DiscountProtoService;
 
 namespace Basket.API.Extensions
 {
     public static class InjectionService
     {
-        public static IServiceCollection InjectCustomServices(this IServiceCollection services)
+        public static WebApplicationBuilder InjectCustomServices(this WebApplicationBuilder builder)
         {
-            services.AddScoped<IBasketRepository, BasketRepository>();
-            return services;
+            builder.Services.AddScoped<IBasketRepository, BasketRepository>();
+            builder.Services.AddGrpcClient<DiscountProtoServiceClient>(
+                o => o.Address = new Uri(builder.Configuration["GrpcSettings:DiscountUrl"]));
+
+            builder.Services.AddScoped<DiscountGrpcService>();
+
+            return builder;
         }
     }
 }
